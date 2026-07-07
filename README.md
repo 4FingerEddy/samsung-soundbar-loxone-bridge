@@ -59,6 +59,20 @@ curl http://127.0.0.1:8088/health
 curl "http://127.0.0.1:8088/api/v1/loxone/status.txt?token=<your-bridge-token>"
 ```
 
+The Loxone scalar status is backward-compatible and includes both the original values and power readback fields:
+
+```text
+ok=1
+volume=7
+muted=0
+sound_mode_code=4
+sound_mode_text=ADAPTIVE_PLUS
+power_state=1
+power=on
+power_raw=powerOn
+reachable=1
+```
+
 ## Configuration
 
 - `SOUNDBAR_HOST`: required; IP/DNS name of the soundbar.

@@ -33,9 +33,24 @@ volume=7
 muted=0
 sound_mode_code=1
 sound_mode_text=STANDARD
+power_state=1
+power=on
+power_raw=powerOn
+reachable=1
 ```
 
-For JSON-capable integrations, `/api/v1/status` also exposes the power status fields:
+Recommended command recognition entries for this same Virtual HTTP Input:
+
+- `ok=\v`
+- `volume=\v`
+- `muted=\v`
+- `sound_mode_code=\v`
+- `power_state=\v`
+- `reachable=\v`
+
+Use `power_state` for automation logic. `reachable=0` means the bridge could not read the Samsung power status; it must not be treated as `off`.
+
+For JSON-capable integrations, `/api/v1/status` exposes the same power status fields:
 
 ```text
 http://REPLACE_WITH_BRIDGE_IP_PORT/api/v1/status?token=REPLACE_WITH_BRIDGE_AUTH_TOKEN

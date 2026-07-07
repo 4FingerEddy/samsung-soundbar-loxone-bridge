@@ -119,4 +119,18 @@ Read-only Loxone status endpoint:
 http://<bridge-ip>:8088/api/v1/loxone/status.txt?token=<BRIDGE_AUTH_TOKEN>
 ```
 
+Expected scalar fields include the original values plus power readback:
+
+```text
+ok=1
+volume=<number>
+muted=<0-or-1>
+sound_mode_code=<number>
+sound_mode_text=<text>
+power_state=<1-on-0-off-minus1-unknown>
+power=<on-off-unknown>
+power_raw=<raw-samsung-value>
+reachable=<0-or-1>
+```
+
 Control endpoints such as volume/source/mode have real physical effect on the Soundbar. Test those deliberately, not accidentally.

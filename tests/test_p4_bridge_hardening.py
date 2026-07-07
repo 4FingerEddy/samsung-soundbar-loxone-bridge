@@ -123,8 +123,40 @@ def test_loxone_scalar_status_endpoint_returns_numeric_text_values():
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
-    assert response.text == "ok=1\nvolume=7\nmuted=0\nsound_mode_code=2\nsound_mode_text=SURROUND\n"
-    assert fake.calls == [("getVolume", None), ("getMute", None), ("soundModeControl", None)]
+    assert response.text == (
+        "ok=1\n"
+        "volume=7\n"
+        "muted=0\n"
+        "sound_mode_code=2\n"
+        "sound_mode_text=SURROUND\n"
+        "power_state=1\n"
+        "power=on\n"
+        "power_raw=powerOn\n"
+        "reachable=1\n"
+    )
+    assert fake.calls == [("powerControl", None), ("getVolume", None), ("getMute", None), ("soundModeControl", None)]
+
+
+def test_loxone_scalar_status_keeps_volume_when_power_status_times_out():
+    class PowerTimeoutClient(FakeSoundbarClient):
+        def call(self, method: str, params: dict | None = None) -> RpcResult:
+            if method == "powerControl" and params is None:
+                self.calls.append((method, params))
+                raise SamsungClientError("Soundbar did not respond within timeout", "soundbar_timeout", retryable=True)
+            return super().call(method, params)
+
+    fake = PowerTimeoutClient()
+    app = create_app(settings=Settings(bridge_auth_token="secret"), client=fake)
+    response = TestClient(app).get("/api/v1/loxone/status.txt?token=secret")
+
+    assert response.status_code == 200
+    assert "volume=7\n" in response.text
+    assert "power_state=-1\n" in response.text
+    assert "power=unknown\n" in response.text
+    assert "power_raw=\n" in response.text
+    assert "reachable=0\n" in response.text
+    assert fake.calls == [("powerControl", None), ("getVolume", None), ("getMute", None), ("soundModeControl", None)]
+
 
 
 def test_action_endpoint_uses_fake_backend_and_requires_auth():

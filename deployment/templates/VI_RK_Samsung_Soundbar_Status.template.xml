@@ -9,4 +9,8 @@
 	<VirtualInHttpCmd Title="RK_SB_Mode_Is_Surround" Comment="" Check="sound_mode_text=SURROUND" Signed="false" Analog="false" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="" HintText=""/>
 	<VirtualInHttpCmd Title="RK_SB_Mode_Is_Game_Pro" Comment="" Check="sound_mode_text=GAME" Signed="false" Analog="false" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="" HintText=""/>
 	<VirtualInHttpCmd Title="RK_SB_Mode_Is_Adaptive_Plus" Comment="" Check="sound_mode_text=ADAPTIVE_PLUS" Signed="false" Analog="false" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="" HintText=""/>
+	<VirtualInHttpCmd Title="RK_SB_Power_State" Comment="1=on, 0=off, -1=unknown/unreachable" Check="power_state=\v" Signed="true" Analog="true" SourceValLow="-1" DestValLow="-1" SourceValHigh="1" DestValHigh="1" DefVal="-1" MinVal="-1" MaxVal="1" Unit="&lt;v&gt;" HintText=""/>
+	<VirtualInHttpCmd Title="RK_SB_Reachable" Comment="1=power status reachable, 0=not reachable" Check="reachable=\v" Signed="true" Analog="true" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="&lt;v&gt;" HintText=""/>
+	<VirtualInHttpCmd Title="RK_SB_Power_Is_On" Comment="" Check="power=on" Signed="false" Analog="false" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="" HintText=""/>
+	<VirtualInHttpCmd Title="RK_SB_Power_Is_Off" Comment="" Check="power=off" Signed="false" Analog="false" SourceValLow="0" DestValLow="0" SourceValHigh="1" DestValHigh="1" DefVal="0" MinVal="0" MaxVal="1" Unit="" HintText=""/>
 </VirtualInHttp>

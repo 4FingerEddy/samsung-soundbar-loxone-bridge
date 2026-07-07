@@ -138,6 +138,21 @@ def create_router(settings: Settings, client: SoundbarBackend) -> APIRouter:
     ) -> PlainTextResponse:
         require_auth(request, token=token, authorization=authorization)
         try:
+            power_fields: dict[str, Any] = {
+                "power": "unknown",
+                "power_raw": None,
+                "power_state": -1,
+                "reachable": False,
+            }
+            try:
+                power = client.call("powerControl")
+                power_fields.update(normalize_power_result(power.data))
+                power_fields["reachable"] = power.status_code is not None
+            except SamsungClientError:
+                # Keep the scalar Loxone status useful when the soundbar is in
+                # deep standby or the vendor power-status method times out.
+                # Unreachable is not the same as off.
+                pass
             volume = client.call("getVolume")
             mute = client.call("getMute")
             sound_mode = client.call("soundModeControl")
@@ -147,6 +162,10 @@ def create_router(settings: Settings, client: SoundbarBackend) -> APIRouter:
                 normalize_mute(mute.data),
                 sound_mode_code(mode_text),
                 mode_text,
+                power_fields.get("power_state", -1),
+                power_fields.get("power"),
+                power_fields.get("power_raw"),
+                bool(power_fields.get("reachable")),
             )
             return PlainTextResponse(body)
         except SamsungClientError as exc:
@@ -358,18 +377,32 @@ def sound_mode_code(mode: str | None) -> int:
 
 
 def loxone_status_text(
-    volume: int | float | None, muted: bool | None, mode_code: int = 0, mode_text: str | None = None
+    volume: int | float | None,
+    muted: bool | None,
+    mode_code: int = 0,
+    mode_text: str | None = None,
+    power_state: int = -1,
+    power: str | None = "unknown",
+    power_raw: Any | None = None,
+    reachable: bool = False,
 ) -> str:
     ok = int(volume is not None and muted is not None)
     volume_value: int | float = volume if volume is not None else -1
     muted_value = 1 if muted is True else 0
     mode_value = (mode_text or "").replace("\r", " ").replace("\n", " ").strip()
+    power_value = (power or "unknown").replace("\r", " ").replace("\n", " ").strip()
+    raw_value = ("" if power_raw is None else str(power_raw)).replace("\r", " ").replace("\n", " ").strip()
+    reachable_value = 1 if reachable else 0
     return (
         f"ok={ok}\n"
         f"volume={volume_value}\n"
         f"muted={muted_value}\n"
         f"sound_mode_code={mode_code}\n"
         f"sound_mode_text={mode_value}\n"
+        f"power_state={power_state}\n"
+        f"power={power_value}\n"
+        f"power_raw={raw_value}\n"
+        f"reachable={reachable_value}\n"
     )
 
 

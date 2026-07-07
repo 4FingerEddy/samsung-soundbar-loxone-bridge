@@ -22,6 +22,7 @@
 - `powerControl` ohne `power`-Parameter als read-only Statusabfrage ergänzt.
 - `/api/v1/status` liefert `reachable`, `power`, `power_raw` und `power_state`.
 - `/api/v1/power/state` und `/api/v1/power/state.txt` für Loxone-freundliche Auswertung ergänzt.
+- `/api/v1/loxone/status.txt` rückwärtskompatibel um `power_state`, `power`, `power_raw` und `reachable` erweitert.
 - Probe-Script testet standardmäßig `GET /`, `createAccessToken`, `getVolume`, `getMute` und `powerControl status`; Power-On/Off bleiben explizite Flags.
-- Unit-Tests für Mapping `powerOn/powerOff/unknown/timeout` ergänzt.
+- Unit-Tests für Mapping `powerOn/powerOff/unknown/timeout` und Loxone-Scalar-Status ergänzt.
 - Live-Probe read-only: `powerControl status` lieferte `powerOff`, normalisiert zu `off` / `0`.
