@@ -1,6 +1,6 @@
 services:
   samsung-soundbar-bridge:
-    image: ${SOUNDBAR_BRIDGE_IMAGE:-samsung-soundbar-bridge:0.1.0-local}
+    image: ${SOUNDBAR_BRIDGE_IMAGE:-ghcr.io/4fingereddy/samsung-soundbar-loxone-bridge:0.1.0}
     container_name: ${SOUNDBAR_BRIDGE_CONTAINER_NAME:-samsung-soundbar-bridge}
     restart: unless-stopped
     network_mode: host
