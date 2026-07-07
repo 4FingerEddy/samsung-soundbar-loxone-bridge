@@ -1,0 +1,30 @@
+services:
+  samsung-soundbar-bridge:
+    image: ${SOUNDBAR_BRIDGE_IMAGE:-samsung-soundbar-bridge:0.1.0-local}
+    container_name: ${SOUNDBAR_BRIDGE_CONTAINER_NAME:-samsung-soundbar-bridge}
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      SOUNDBAR_HOST: "${SOUNDBAR_HOST:?set the soundbar IP or DNS name}"
+      SOUNDBAR_PORT: "${SOUNDBAR_PORT:-1516}"
+      SOUNDBAR_SCHEME: "${SOUNDBAR_SCHEME:-https}"
+      SOUNDBAR_VERIFY_SSL: "${SOUNDBAR_VERIFY_SSL:-false}"
+      SOUNDBAR_TIMEOUT_SECONDS: "${SOUNDBAR_TIMEOUT_SECONDS:-5}"
+      SOUNDBAR_RETRY_ON_TOKEN_ERROR: "${SOUNDBAR_RETRY_ON_TOKEN_ERROR:-true}"
+      BRIDGE_HOST: "${BRIDGE_HOST:-0.0.0.0}"
+      BRIDGE_PORT: "${BRIDGE_PORT:-8088}"
+      BRIDGE_AUTH_TOKEN: "${BRIDGE_AUTH_TOKEN:?set a strong bridge token}"
+      BRIDGE_AUTH_MODE: "${BRIDGE_AUTH_MODE:-query_or_header}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      LOG_JSON: "${LOG_JSON:-false}"
+      DEBUG_ENDPOINTS: "${DEBUG_ENDPOINTS:-false}"
+      SOUNDBAR_MODE_STANDARD: "${SOUNDBAR_MODE_STANDARD:-STANDARD}"
+      SOUNDBAR_MODE_SURROUND: "${SOUNDBAR_MODE_SURROUND:-SURROUND}"
+      SOUNDBAR_MODE_GAME: "${SOUNDBAR_MODE_GAME:-GAME}"
+      SOUNDBAR_MODE_ADAPTIVE: "${SOUNDBAR_MODE_ADAPTIVE:-ADAPTIVE}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; port=os.getenv('BRIDGE_PORT', '8088'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

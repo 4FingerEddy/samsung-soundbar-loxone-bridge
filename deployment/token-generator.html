@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Samsung Soundbar Bridge Token Generator</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; line-height: 1.5; }
+    code, textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    textarea { width: 100%; min-height: 90px; font-size: 16px; padding: 12px; box-sizing: border-box; }
+    button { font-size: 16px; padding: 10px 14px; margin: 8px 8px 8px 0; cursor: pointer; }
+    .ok { color: #0a7f25; font-weight: 600; }
+    .warn { background: #fff7d6; padding: 12px; border-left: 4px solid #d6a300; }
+  </style>
+</head>
+<body>
+  <h1>Samsung Soundbar Bridge Token Generator</h1>
+
+  <p>
+    Dieses Tool erzeugt lokal im Browser ein zufälliges <code>BRIDGE_AUTH_TOKEN</code>.
+    Es sendet nichts ins Internet. Speichere das Token nur in Portainer/Loxone und nicht öffentlich.
+  </p>
+
+  <p class="warn">
+    Wichtig: Das ist <strong>nicht</strong> der Samsung AccessToken. Der Samsung AccessToken wird von der Bridge automatisch erzeugt.
+    Dieses Token schützt nur die HTTP-Endpunkte der Bridge.
+  </p>
+
+  <button id="generate">Token erzeugen</button>
+  <button id="copy">Kopieren</button>
+  <span id="status"></span>
+
+  <textarea id="token" readonly spellcheck="false" aria-label="Generated token"></textarea>
+
+  <h2>In Portainer eintragen</h2>
+  <pre><code>BRIDGE_AUTH_TOKEN=&lt;hier das erzeugte Token einsetzen&gt;</code></pre>
+
+  <script>
+    function base64Url(bytes) {
+      let binary = '';
+      bytes.forEach((b) => binary += String.fromCharCode(b));
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    }
+
+    function generateToken() {
+      const bytes = new Uint8Array(32); // 256-bit random token
+      crypto.getRandomValues(bytes);
+      const token = base64Url(bytes);
+      document.getElementById('token').value = token;
+      document.getElementById('status').textContent = 'Token erzeugt.';
+      document.getElementById('status').className = 'ok';
+    }
+
+    async function copyToken() {
+      const token = document.getElementById('token').value;
+      if (!token) generateToken();
+      const value = document.getElementById('token').value;
+      try {
+        await navigator.clipboard.writeText(value);
+        document.getElementById('status').textContent = 'Kopiert.';
+        document.getElementById('status').className = 'ok';
+      } catch (err) {
+        document.getElementById('token').select();
+        document.getElementById('status').textContent = 'Bitte manuell kopieren.';
+        document.getElementById('status').className = '';
+      }
+    }
+
+    document.getElementById('generate').addEventListener('click', generateToken);
+    document.getElementById('copy').addEventListener('click', copyToken);
+    generateToken();
+  </script>
+</body>
+</html>
