@@ -83,6 +83,8 @@ Authenticated:
 
 - `GET /api/v1/ready`
 - `GET /api/v1/status`
+- `GET /api/v1/power/state`
+- `GET /api/v1/power/state.txt`
 - `GET /api/v1/loxone/status.txt`
 - `GET|POST /api/v1/volume/up`
 - `GET|POST /api/v1/volume/down`

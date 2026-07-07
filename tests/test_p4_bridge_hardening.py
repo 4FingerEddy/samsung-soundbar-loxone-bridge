@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.samsung_client import RpcResult
+from app.samsung_client import RpcResult, SamsungClientError
 
 
 class FakeSoundbarClient:
@@ -20,6 +20,8 @@ class FakeSoundbarClient:
             return RpcResult(True, method, 200, {"jsonrpc": "2.0", "result": {"volume": "7"}}, 11)
         if method == "getMute":
             return RpcResult(True, method, 200, {"jsonrpc": "2.0", "result": {"mute": False}}, 12)
+        if method == "powerControl" and params is None:
+            return RpcResult(True, method, 200, {"jsonrpc": "2.0", "result": {"power": "powerOn"}}, 9)
         return RpcResult(True, method, 200, {"jsonrpc": "2.0", "result": {"success": True}}, 13)
 
 
@@ -32,11 +34,83 @@ def test_status_normalizes_live_schema_to_plain_values():
     body = response.json()
     assert body["volume"] == 7
     assert body["muted"] is False
+    assert body["reachable"] is True
+    assert body["power"] == "on"
+    assert body["power_raw"] == "powerOn"
+    assert body["power_state"] == 1
     assert body["sound_mode"] == "SURROUND"
     assert body["sound_mode_raw"] == {"soundMode": "SURROUND"}
     assert body["sound_mode_readback_ok"] is True
     assert body["last_success_at"] == 1234567890.0
-    assert fake.calls == [("getVolume", None), ("getMute", None), ("soundModeControl", None)]
+    assert fake.calls == [("powerControl", None), ("getVolume", None), ("getMute", None), ("soundModeControl", None)]
+
+
+def test_power_state_endpoints_return_numeric_status_for_loxone():
+    fake = FakeSoundbarClient()
+    app = create_app(settings=Settings(bridge_auth_token="secret"), client=fake)
+    client = TestClient(app)
+
+    response = client.get("/api/v1/power/state?token=secret")
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "reachable": True,
+        "power": "on",
+        "power_raw": "powerOn",
+        "power_state": 1,
+    }
+
+    text = client.get("/api/v1/power/state.txt?token=secret")
+    assert text.status_code == 200
+    assert text.headers["content-type"].startswith("text/plain")
+    assert text.text == "1\n"
+    assert fake.calls == [("powerControl", None), ("powerControl", None)]
+
+
+def test_status_keeps_other_values_when_power_status_times_out():
+    class PowerTimeoutClient(FakeSoundbarClient):
+        def call(self, method: str, params: dict | None = None) -> RpcResult:
+            if method == "powerControl" and params is None:
+                self.calls.append((method, params))
+                raise SamsungClientError("Soundbar did not respond within timeout", "soundbar_timeout", retryable=True)
+            return super().call(method, params)
+
+    fake = PowerTimeoutClient()
+    app = create_app(settings=Settings(bridge_auth_token="secret"), client=fake)
+    response = TestClient(app).get("/api/v1/status?token=secret")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["reachable"] is False
+    assert body["power"] == "unknown"
+    assert body["power_raw"] is None
+    assert body["power_state"] == -1
+    assert body["power_error"]["type"] == "soundbar_timeout"
+    assert body["volume"] == 7
+    assert body["muted"] is False
+
+
+def test_status_returns_normalized_body_when_soundbar_unreachable():
+    class UnreachableClient(FakeSoundbarClient):
+        def call(self, method: str, params: dict | None = None) -> RpcResult:
+            self.calls.append((method, params))
+            raise SamsungClientError("connection refused", "soundbar_unreachable", retryable=True)
+
+    fake = UnreachableClient()
+    app = create_app(settings=Settings(bridge_auth_token="secret"), client=fake)
+    response = TestClient(app).get("/api/v1/status?token=secret")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": False,
+        "backend": "local-jsonrpc",
+        "reachable": False,
+        "power": "unknown",
+        "power_raw": None,
+        "power_state": -1,
+        "error": {"type": "soundbar_unreachable", "message": "connection refused", "retryable": True},
+    }
 
 
 def test_loxone_scalar_status_endpoint_returns_numeric_text_values():

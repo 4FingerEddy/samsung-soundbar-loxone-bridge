@@ -37,6 +37,21 @@ def extract_token(data: dict[str, Any]) -> str | None:
     return data.get("AccessToken") or data.get("accessToken")
 
 
+def normalize_power_status(data: dict[str, Any] | None) -> dict[str, Any]:
+    raw: Any = None
+    if isinstance(data, dict):
+        payload = data.get("result", data)
+        if isinstance(payload, dict):
+            raw = payload.get("power")
+        elif isinstance(payload, str):
+            raw = payload
+    if raw == "powerOn":
+        return {"power": "on", "power_raw": raw, "power_state": 1}
+    if raw == "powerOff":
+        return {"power": "off", "power_raw": raw, "power_state": 0}
+    return {"power": "unknown", "power_raw": raw, "power_state": -1}
+
+
 def post_json(base_url: str, payload: dict[str, Any], timeout: float, insecure: bool) -> tuple[int, dict[str, Any] | None, int]:
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(base_url, data=body, headers={"Content-Type": "application/json", "Accept": "application/json"}, method="POST")
@@ -95,12 +110,46 @@ def run_probe(args: argparse.Namespace) -> list[ProbeStep]:
         except Exception as exc:  # noqa: BLE001
             steps.append(ProbeStep(method, False, error=str(exc)))
 
+    try:
+        payload = {"jsonrpc": "2.0", "method": "powerControl", "id": 10, "params": {"AccessToken": token}}
+        status, data, duration = post_json(base_url, payload, args.timeout, args.insecure)
+        normalized = normalize_power_status(data)
+        steps.append(
+            ProbeStep(
+                "powerControl status",
+                200 <= status < 300,
+                status,
+                duration,
+                {"raw": data, "normalized": normalized},
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        steps.append(ProbeStep("powerControl status", False, error=str(exc)))
+
     if args.test_volume_down:
         payload = {"jsonrpc": "2.0", "method": "remoteKeyControl", "id": 4, "params": {"AccessToken": token, "remoteKey": "VOL_DOWN"}}
         status, data, duration = post_json(base_url, payload, args.timeout, args.insecure)
         steps.append(ProbeStep("remoteKeyControl VOL_DOWN", 200 <= status < 300, status, duration, data))
 
+    if args.test_power_off:
+        payload = {"jsonrpc": "2.0", "method": "powerControl", "id": 11, "params": {"AccessToken": token, "power": "powerOff"}}
+        status, data, duration = post_json(base_url, payload, args.timeout, args.insecure)
+        steps.append(ProbeStep("powerControl powerOff", 200 <= status < 300, status, duration, data))
+
+    if args.test_power_on:
+        payload = {"jsonrpc": "2.0", "method": "powerControl", "id": 12, "params": {"AccessToken": token, "power": "powerOn"}}
+        status, data, duration = post_json(base_url, payload, args.timeout, args.insecure)
+        steps.append(ProbeStep("powerControl powerOn", 200 <= status < 300, status, duration, data))
+
     return steps
+
+
+def steps_to_json(steps: list[ProbeStep]) -> dict[str, Any]:
+    tests: dict[str, Any] = {}
+    for step in steps:
+        key = step.name.lower().replace(" /", "").replace(" ", "_").replace("/", "_")
+        tests[key] = asdict(step)
+    return {"ok": all(step.ok for step in steps if not step.name.startswith("remoteKeyControl")), "tests": tests}
 
 
 def main() -> int:
@@ -110,14 +159,17 @@ def main() -> int:
     parser.add_argument("--scheme", default="https")
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--insecure", action="store_true", help="Disable TLS certificate verification for local/self-signed Samsung endpoint")
-    parser.add_argument("--get-baseline", action="store_true", help="Also run naked GET / baseline; expected to return HTTP 400 on this API")
+    parser.add_argument("--get-baseline", action="store_true", default=True, help="Run naked GET / baseline; expected to return HTTP 400 on this API (default)")
+    parser.add_argument("--skip-baseline", dest="get_baseline", action="store_false", help="Skip naked GET / baseline")
     parser.add_argument("--test-volume-down", action="store_true", help="Sends one real VOL_DOWN command. Requires separate operator approval.")
+    parser.add_argument("--test-power-off", action="store_true", help="Sends one real powerOff command. Requires separate operator approval.")
+    parser.add_argument("--test-power-on", action="store_true", help="Sends one real powerOn command. Requires separate operator approval.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     args = parser.parse_args()
 
     steps = run_probe(args)
     if args.json:
-        print(json.dumps([asdict(step) for step in steps], indent=2, ensure_ascii=False))
+        print(json.dumps(steps_to_json(steps), indent=2, ensure_ascii=False))
     else:
         for step in steps:
             status = step.http_status if step.http_status is not None else "-"

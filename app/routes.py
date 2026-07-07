@@ -11,13 +11,13 @@ from . import __version__
 from .auth import is_authorized
 from .config import Settings
 from .models import build_actions
-from .samsung_client import SamsungClientError, SamsungSoundbarClient
+from .samsung_client import RpcResult, SamsungClientError, SamsungSoundbarClient, normalize_power_result
 
 
 class SoundbarBackend(Protocol):
     last_success_at: float | None
 
-    def call(self, method: str, params: dict[str, Any] | None = None): ...
+    def call(self, method: str, params: dict[str, Any] | None = None) -> RpcResult: ...
 
 
 def create_router(settings: Settings, client: SoundbarBackend) -> APIRouter:
@@ -64,13 +64,23 @@ def create_router(settings: Settings, client: SoundbarBackend) -> APIRouter:
         out: dict[str, Any] = {
             "ok": True,
             "backend": "local-jsonrpc",
+            "reachable": True,
             "power": "unknown",
+            "power_raw": None,
+            "power_state": -1,
             "volume": None,
             "muted": None,
             "source": None,
             "sound_mode": None,
         }
         try:
+            try:
+                power = client.call("powerControl")
+                out.update(normalize_power_result(power.data))
+                out["reachable"] = power.status_code is not None
+            except SamsungClientError as exc:
+                out["reachable"] = False
+                out["power_error"] = {"type": exc.error_type, "message": str(exc), "retryable": exc.retryable}
             volume = client.call("getVolume")
             mute = client.call("getMute")
             out["volume"] = normalize_volume(volume.data)
@@ -86,7 +96,41 @@ def create_router(settings: Settings, client: SoundbarBackend) -> APIRouter:
             out["last_success_at"] = client.last_success_at
             return out
         except SamsungClientError as exc:
-            raise bridge_error(exc) from exc
+            return {
+                "ok": False,
+                "backend": "local-jsonrpc",
+                "reachable": False,
+                "power": "unknown",
+                "power_raw": None,
+                "power_state": -1,
+                "error": {"type": exc.error_type, "message": str(exc), "retryable": exc.retryable},
+            }
+
+    @router.get("/api/v1/power/state")
+    def power_state(request: Request, token: str | None = None, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        require_auth(request, token=token, authorization=authorization)
+        try:
+            result = client.call("powerControl")
+            out = normalize_power_result(result.data)
+            out["reachable"] = result.status_code is not None
+            out["ok"] = result.ok
+            return out
+        except SamsungClientError as exc:
+            return {
+                "ok": False,
+                "reachable": False,
+                "power": "unknown",
+                "power_raw": None,
+                "power_state": -1,
+                "error": {"type": exc.error_type, "message": str(exc), "retryable": exc.retryable},
+            }
+
+    @router.get("/api/v1/power/state.txt", response_class=PlainTextResponse)
+    def power_state_txt(
+        request: Request, token: str | None = None, authorization: str | None = Header(default=None)
+    ) -> PlainTextResponse:
+        body = power_state(request, token=token, authorization=authorization)
+        return PlainTextResponse(f"{body.get('power_state', -1)}\n")
 
     @router.get("/api/v1/loxone/status.txt", response_class=PlainTextResponse)
     def loxone_status_txt(

@@ -138,6 +138,21 @@ class SamsungSoundbarClient:
                 result = self.post_json(payload)
             return result
 
+    def get_power(self) -> dict[str, Any]:
+        try:
+            result = self.call("powerControl")
+        except SamsungClientError as exc:
+            return {
+                "power": "unknown",
+                "power_raw": None,
+                "power_state": -1,
+                "reachable": False,
+                "ok": False,
+                "error": {"type": exc.error_type, "message": str(exc), "retryable": exc.retryable},
+            }
+        normalized = normalize_power_result(result.data)
+        return normalized
+
 
 def extract_access_token(data: dict[str, Any]) -> str | None:
     result = data.get("result")
@@ -161,3 +176,25 @@ def is_token_error(result: RpcResult) -> bool:
         code = str(err.get("code", "")).lower()
         return "token" in message or "auth" in message or code in {"401", "403"}
     return False
+
+
+def normalize_power_result(data: dict[str, Any] | None) -> dict[str, Any]:
+    raw: Any = None
+    if isinstance(data, dict):
+        payload = data.get("result", data)
+        if isinstance(payload, dict):
+            raw = payload.get("power")
+        elif isinstance(payload, str):
+            raw = payload
+
+    if raw == "powerOn":
+        power = "on"
+        state = 1
+    elif raw == "powerOff":
+        power = "off"
+        state = 0
+    else:
+        power = "unknown"
+        state = -1
+
+    return {"power": power, "power_raw": raw, "power_state": state}

@@ -35,6 +35,60 @@ sound_mode_code=1
 sound_mode_text=STANDARD
 ```
 
+For JSON-capable integrations, `/api/v1/status` also exposes the power status fields:
+
+```text
+http://REPLACE_WITH_BRIDGE_IP_PORT/api/v1/status?token=REPLACE_WITH_BRIDGE_AUTH_TOKEN
+```
+
+Relevant fields:
+
+- `ok`: bridge status request succeeded
+- `reachable`: Samsung local API was reachable for the power read
+- `power`: normalized value, one of `on`, `off`, `unknown`
+- `power_raw`: raw Samsung value, for example `powerOn` or `powerOff`
+- `power_state`: numeric value for automation logic
+
+Recommended Loxone mapping:
+
+- `power_state = 1`: Soundbar on
+- `power_state = 0`: Soundbar off
+- `power_state = -1`: unknown, unsupported response, timeout, or unreachable
+
+Do not treat `-1` as off. Deep standby, Wi-Fi sleep, routing problems, and a real off state can look identical from the network side.
+
+## Power status input
+
+If JSON parsing is inconvenient in Loxone, use the dedicated numeric endpoint:
+
+```text
+http://REPLACE_WITH_BRIDGE_IP_PORT/api/v1/power/state?token=REPLACE_WITH_BRIDGE_AUTH_TOKEN
+```
+
+It returns JSON like:
+
+```json
+{"ok":true,"reachable":true,"power":"on","power_raw":"powerOn","power_state":1}
+```
+
+For a very small Virtual HTTP Input, use the plain-text variant:
+
+```text
+http://REPLACE_WITH_BRIDGE_IP_PORT/api/v1/power/state.txt?token=REPLACE_WITH_BRIDGE_AUTH_TOKEN
+```
+
+Response body:
+
+```text
+1
+```
+
+Mapping:
+
+- `1` = on
+- `0` = off
+- `-1` = unknown/error
+
 Recommended starting values:
 
 - Poll interval: 60 seconds
